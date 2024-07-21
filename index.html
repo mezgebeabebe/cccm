@@ -28,9 +28,8 @@
         }).addTo(map);
 
         // URLs of the GeoJSON files
-        var sitesUrl = 'https://raw.githubusercontent.com/yourusername/yourrepository/main/path/to/Sites.geojson';
-        var woredaUrl = 'https://raw.githubusercontent.com/yourusername/yourrepository/main/path/to/WoredaGS2.geojson';
-
+        var sitesUrl = 'https://raw.githubusercontent.com/mezgebeabebe/cccm/main/Sites.geojson';
+       
         // Add GeoJSON layers to the map
         L.geoJson.ajax(sitesUrl, {
             onEachFeature: function (feature, layer) {
@@ -38,11 +37,7 @@
             }
         }).addTo(map);
 
-        L.geoJson.ajax(woredaUrl, {
-            onEachFeature: function (feature, layer) {
-                layer.bindPopup('<strong>Woreda:</strong><br>' + feature.properties.admin3Name);
-            }
-        }).addTo(map);
+       
     </script>
 </body>
 </html>
