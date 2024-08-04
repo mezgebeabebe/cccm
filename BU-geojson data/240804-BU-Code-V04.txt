@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCCM Cluster Presence and Priority</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 60%;
+        }
+        
+        #controls {
+            width: 40%;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            background: #f9f9f9;
+            border-left: 1px solid #ddd;
+        }
+        #jsonData, #excelData, #cccmjsondata {
+            margin-top: 20px;
+        }
+        select, button {
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 12px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 18px;
+            color: #007bff;
+        }
+        .btn-icon:hover {
+            color: #0056b3;
+        }
+        .summary {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .summary p {
+            margin: 0;
+            padding: 0;
+            font-weight: bold;
+        }
+        .btn-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .feature-label-no-background {
+        font-size: 20px;
+        font-weight: bold;
+        color: #000;
+        background: none !important; /* Ensure no background */
+        padding: 0 !important;       /* Ensure no padding */
+        border: none !important;     /* Ensure no border */
+        box-shadow: none !important; /* Ensure no shadow */
+        white-space: nowrap;         /* Ensure text does not wrap */
+    }
+
+    .map-title {
+    position: absolute;
+    top: 10px;
+    left: 30%;
+    z-index: 1000;
+    background: rgb(27, 101, 124); /* Background color in RGB */
+    padding: 5px;
+    font-size: 20px;
+    color: white;
+    font-weight: bold;
+    border-radius: 4px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.legend {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 4px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.legend div {
+    display: flex;
+    align-items: center;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 5px;
+}
+
+.legend-iconsites {
+    width: 150px; /* Set the width */
+    height: 150px; /* Set the height */
+    margin-right: 5px; /* Space between icon and text */
+    background-image: url('sitesicon.png');
+    background-size: cover; /* Ensure the image covers the div */
+}
+
+
+    </style>
+</head>
+<body>
+    <div id="controls">
+        
+
+        <div>
+            <label for="property">Property:</label>
+            <select id="property">
+                <!-- Options will be populated dynamically -->
+            </select>
+        </div>
+        <div>
+            <label for="value">Value:</label>
+            <select id="value">
+                <!-- Options will be populated dynamically -->
+            </select>
+        </div>
+        <button onclick="applyFilter()">Apply Filter</button>
+        <button onclick="clearFilter()">Clear Filter</button>
+       
+        <div id="excelData">
+            <h2>Excel Data</h2>
+            <div class="summary" id="summary">
+                <div>
+                    <p>Total HHs: <span id="totalHHs">0</span></p>
+                    <p>Total INDs: <span id="totalINDs">0</span></p>
+                </div>
+                <div class="btn-container">
+                    <button class="btn-icon" id="viewAllButton" onclick="viewAll()"><span>&#9660;</span></button>
+                    <button class="btn-icon" id="minimizeButton" onclick="minimizeTable()"><span>&#9650;</span></button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="excelTable">
+                    <!-- Excel data will be populated here -->
+                </table>
+            </div>
+        </div>
+
+        <div id="jsonData">
+            <h2>JSON Data</h2>
+            <div class="summary" id="jsonSummary">
+
+                <p>Total HHs: <span id="jsonTotalHHs">0</span></p>
+                <p>Total INDs: <span id="jsonTotalINDs">0</span></p>
+                
+                <div class="btn-container">
+                    <button class="btn-icon" id="jsonViewAllButton" onclick="jsonViewAll()"><span>&#9660;</span></button>
+                    <button class="btn-icon" id="jsonMinimizeButton" onclick="jsonMinimizeTable()"><span>&#9650;</span></button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="jsonTable">
+                    <!-- JSON data will be populated here -->
+                </table>
+            </div>
+        </div>
+
+
+        <div id="cccmjsonData">
+            <h2> CCCM JSON Data</h2>
+            <div class="summary" id="cccmjsonSummary">
+                
+                <div class="btn-container">
+
+                    <p>Total HHs: <span id="cccmjsonTotalHHs">0</span></p>
+                    <p>Total INDs: <span id="cccmjsonTotalINDs">0</span></p>
+
+
+                    <button class="btn-icon" id="cccmjsonViewAllButton" onclick="cccmjsonViewAll()"><span>&#9660;</span></button>
+                    <button class="btn-icon" id="cccmjsonMinimizeButton" onclick="cccmjsonMinimizeTable()"><span>&#9650;</span></button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="cccmjsonTable">
+                    <!-- JSON data will be populated here -->
+                </table>
+            </div>
+        </div>
+
+        <div id="abajsonData">
+            <h2> ABA JSON Data</h2>
+            <div class="summary" id="abajsonSummary">
+                
+                <div class="btn-container">
+
+                    <p>Total HHs: <span id="abajsonTotalHHs">0</span></p>
+                    <p>Total INDs: <span id="abajsonTotalINDs">0</span></p>
+
+
+                    <button class="btn-icon" id="abajsonViewAllButton" onclick="abajsonViewAll()"><span>&#9660;</span></button>
+                    <button class="btn-icon" id="abajsonMinimizeButton" onclick="abajsonMinimizeTable()"><span>&#9650;</span></button>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="abajsonTable">
+                    <!-- JSON data will be populated here -->
+                </table>
+            </div>
+        </div>
+
+
+
+
+    </div>
+    <div id="map">
+
+        <div class="map-title">CCCM Presence and Priority Map</div>
+        <div class="legend">
+            <div>
+            <img src="sitesicon.png" class="legend-icon" style="width: 10px; height: 10px;" /> CCCM Manages Sites
+            </div>
+            
+            <div>
+                <img src="aba.png" class="legend-icon" style="width: 10px; height: 10px;" /> CCCM Manages Sites
+                </div>
+
+
+            <div><div class="legend-color" style="background-color: #1B657C;"></div> Prioritized</div>
+            <div><div class="legend-color" style="background-color: #F4A261;"></div> Not Yet</div>
+        </div>
+
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-ajax@2.0.0/leaflet.ajax.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        var map = L.map('map').setView([9.145, 40.489673], 6);
+
+        // Add a tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Define colors for each admin1Name
+        var colorByAdmin1Name = {
+            'Afder': '#1B657C',  // Example color
+            'Central': '#1B657C',  // Example color
+            'Daawa': '#1B657C',   // Example color
+            'Doolo': '#1B657C',   // Example color
+            'East Wellega': '#1B657C',   // Example color
+            'Eastern': '#1B657C',   // Example color
+            'Fafan': '#1B657C',   // Example color
+            'Horo Gudru Wellega': '#1B657C',   // Example color
+            'Kamashi': '#1B657C',  // Example color
+            'Kellem Wellega': '#1B657C',  // Example color
+            'Liban': '#1B657C', // Example color
+            'Mekelle': '#1B657C',// Example color
+            'Metekel': '#1B657C',   // Example color
+            'North Shewa (AM)': '#1B657C',   // Example color
+            'North Wello': '#1B657C',   // Example color
+            'North Western': '#1B657C',   // Example color
+            'NY': '#F4A261',   // Example color
+            'Siti': '#1B657C',   // Example color
+            'South Eastern': '#1B657C',   // Example color
+            'South Wello': '#1B657C',   // Example color
+            'Southern': '#1B657C',  // Example color
+            'Wag Hamra': '#1B657C',   // Example color
+            'West Wellega': '#1B657C'   // Example color
+           
+        };
+
+        // GeoJSON layers
+        var woredaLayer = L.geoJSON(null, {
+    style: function (feature) {
+        return {
+            color: colorByAdmin1Name[feature.properties.Priority] || '#cccccc',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.7
+        };
+    },
+    onEachFeature: function (feature, layer) {
+        var props = feature.properties;
+        var popupContent = '<strong>Attributes:</strong><br>';
+        for (var key in props) {
+            if (props.hasOwnProperty(key)) {
+                popupContent += key + ': ' + props[key] + '<br>';
+            }
+        }
+        layer.bindPopup(popupContent);
+
+        // Add a label to the feature without background
+        if (props.Woreda) {
+                var tooltip = L.tooltip({
+                    permanent: true,
+                    direction: 'center',
+                    className: 'feature-label-no-background',
+                    opacity: 0
+                }).setContent(props.Woreda);
+
+                layer.bindTooltip(tooltip).openTooltip();
+            }
+
+    }
+}).addTo(map);
+
+fetch('woreda.geojson')
+        .then(response => response.json())
+        .then(data => {
+            woredaLayer.addData(data);
+        })
+        .catch(error => console.error('Error loading GeoJSON:', error));
+
+    // Event listener for zoomend to handle label visibility based on zoom level
+    map.on('zoomend', function() {
+        const zoomLevel = map.getZoom();
+        woredaLayer.eachLayer(function(layer) {
+            const tooltip = layer.getTooltip();
+            if (tooltip) {
+                if (zoomLevel >= 9) {
+                    tooltip.setOpacity(1);
+                } else {
+                    tooltip.setOpacity(0);
+                }
+            }
+        });
+    });
+
+    // Initial call to update label visibility based on initial zoom level
+    map.fire('zoomend');
+
+    var smallIcon = L.icon({
+    iconUrl: 'sitesicon.png', // Replace with the path to your icon image
+    iconSize: [30, 30], // Set the size of the icon (width, height)
+    iconAnchor: [10, 20], // Adjust anchor point
+    popupAnchor: [0, -20] // Adjust popup position
+});
+
+
+        var sitesLayer = L.geoJSON(null, {
+            
+            pointToLayer: function (feature, latlng) {
+        return L.marker(latlng, { icon: smallIcon }); // Use the small icon here
+    },
+            
+            onEachFeature: function (feature, layer) {
+                var props = feature.properties;
+                var popupContent = '<strong>Attributes:</strong><br>';
+                for (var key in props) {
+                    if (props.hasOwnProperty(key)) {
+                        popupContent += key + ': ' + props[key] + '<br>';
+                    }
+                }
+                layer.bindPopup(popupContent);
+            }
+        }).addTo(map);
+
+
+        var abasitesLayer = L.geoJSON(null, {
+    style: function (feature) {
+        return {
+            color: '#FF5733', // Change color as needed
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.5
+        };
+    },
+    onEachFeature: function (feature, layer) {
+        var props = feature.properties;
+        var popupContent = '<strong>Attributes:</strong><br>';
+        for (var key in props) {
+            if (props.hasOwnProperty(key)) {
+                popupContent += key + ': ' + props[key] + '<br>';
+            }
+        }
+        layer.bindPopup(popupContent);
+    }
+}).addTo(map);
+
+
+        var allFeatures = [];
+        var excelData = [];
+        var jsonData = [];
+        var cccmjsonData = [];
+        var abajsonData = [];
+        var filteredExcelData = [];
+        var filteredJsonData = [];
+        var cccmfilteredJsonData = [];
+        var abafilteredJsonData = [];
+        var isTableExpanded = false;
+        var isJsonTableExpanded = false;
+        var cccmisJsonTableExpanded = false;
+        var abaisJsonTableExpanded = false;
+
+        // Mapping between filter property and Excel column
+        var propertyToExcelColumn = {
+            'Priority': 'Zone',  // Map "Priority" to the corresponding Excel column 
+            // Add more mappings if needed
+        };
+
+       
+        function loadGeoJSON(url, layer, callback) {
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    layer.addData(data);
+                    if (callback) callback(data);
+                })
+                .catch(error => console.error('Error loading GeoJSON:', error));
+        }
+
+
+        loadGeoJSON('woreda.geojson', woredaLayer, (data) => {
+            allFeatures = data.features;
+            populateFilters();
+        });
+        loadGeoJSON('sites.geojson', sitesLayer);
+        loadGeoJSON('abasites.geojson', abasitesLayer); // Load the abasites GeoJSON file
+
+
+        function loadExcelData() {
+            fetch('dtm.xlsx')
+                .then(response => response.arrayBuffer())
+                .then(data => {
+                    const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+                    excelData = jsonData;  // No filtering, use all columns
+                    filteredExcelData = excelData;
+                    updateExcelTable(excelData);
+                    updateSummary(excelData);
+                    populateExcelFilters(excelData);
+                })
+                .catch(error => console.error('Error loading Excel data:', error));
+        }
+
+        function loadJsonData() {
+            fetch('partnersperworedaCSV.json')
+                .then(response => response.json())
+                .then(data => {
+                    jsonData = data;  // No filtering, use all columns
+                    filteredJsonData = jsonData;
+                    updateJsonTable(jsonData);
+                    updateJsonSummary(jsonData);
+                    populateJsonFilters(jsonData);
+                })
+                .catch(error => console.error('Error loading JSON data:', error));
+        }
+
+
+        function cccmloadJsonData() {
+            fetch('cccmjson.json')
+                .then(response => response.json())
+                .then(data => {
+                    cccmjsonData = data;  // No filtering, use all columns
+                    cccmfilteredJsonData = cccmjsonData;
+                    cccmupdateJsonTable(cccmjsonData);
+                    cccmupdateJsonSummary(cccmjsonData);
+                    cccmpopulateJsonFilters(cccmjsonData);
+                })
+                .catch(error => console.error('Error loading JSON data:', error));
+        }
+
+        function abaloadJsonData() {
+            fetch('abasitest.json')
+                .then(response => response.json())
+                .then(data => {
+                    abajsonData = data;  // No filtering, use all columns
+                    abafilteredJsonData = abajsonData;
+                    abaupdateJsonTable(abajsonData);
+                    abaupdateJsonSummary(abajsonData);
+                    abapopulateJsonFilters(abajsonData);
+                })
+                .catch(error => console.error('Error loading JSON data:', error));
+        }
+
+        loadExcelData();
+        loadJsonData();
+        cccmloadJsonData();
+        abaloadJsonData();
+
+        function populateFilters() {
+            const properties = new Set();
+            allFeatures.forEach(feature => {
+                Object.keys(feature.properties).forEach(key => properties.add(key));
+            });
+
+            const propertySelect = document.getElementById('property');
+            propertySelect.innerHTML = '<option value="">Select Property</option>';
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property;
+                option.textContent = property;
+                propertySelect.appendChild(option);
+            });
+        }
+
+        function populateValues(property) {
+            const values = new Set();
+            allFeatures.forEach(feature => {
+                if (property in feature.properties) {
+                    values.add(feature.properties[property]);
+                }
+            });
+
+            // Include values from JSON data
+            jsonData.forEach(row => {
+                if (property in row) {
+                    values.add(row[property]);
+                }
+            });
+
+            cccmjsonData.forEach(row => {
+                if (property in row) {
+                    values.add(row[property]);
+                }
+            });
+
+            abajsonData.forEach(row => {
+                if (property in row) {
+                    values.add(row[property]);
+                }
+            });
+
+
+            const valueSelect = document.getElementById('value');
+            valueSelect.innerHTML = '<option value="">Select Value</option>';
+            values.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                valueSelect.appendChild(option);
+            });
+        }
+
+        document.getElementById('property').addEventListener('change', (e) => {
+            const selectedProperty = e.target.value;
+            populateValues(selectedProperty);
+        });
+
+        function applyFilter() {
+    const property = document.getElementById('property').value;
+    const value = document.getElementById('value').value;
+
+    if (property && value) {
+        console.log(`Applying filter - Property: ${property}, Value: ${value}`);
+
+        // Filter GeoJSON data
+        const filteredFeatures = allFeatures.filter(feature => feature.properties[property] == value);
+        woredaLayer.clearLayers();
+        woredaLayer.addData(filteredFeatures);
+
+        // Calculate bounds of filtered features
+        if (filteredFeatures.length > 0) {
+            const bounds = L.geoJSON(filteredFeatures).getBounds();
+            map.fitBounds(bounds);
+        }
+
+        // Filter Excel data
+        const excelColumn = propertyToExcelColumn[property] || property;
+        console.log(`Filtering Excel data - Column: ${excelColumn}`);
+        filteredExcelData = excelData.filter(row => row[excelColumn] == value);
+        updateExcelTable(filteredExcelData);
+
+        // Filter JSON data
+        if (property === 'Priority') {
+            filteredJsonData = jsonData.filter(row => row['Zone'] == value);
+        } else {
+            filteredJsonData = jsonData.filter(row => row[property] == value);
+        }
+        updateJsonTable(filteredJsonData);
+        updateJsonSummary(filteredJsonData);
+
+        // Filter CCCM JSON data
+        if (property === 'Priority') {
+            cccmfilteredJsonData = cccmjsonData.filter(row => row['Zone'] == value);
+        } else {
+            cccmfilteredJsonData = cccmjsonData.filter(row => row[property] == value);
+        }
+
+        cccmupdateJsonTable(cccmfilteredJsonData);
+        cccmupdateJsonSummary(cccmfilteredJsonData);
+
+        // Filter ABA JSON data
+        if (property === 'Priority') {
+            abafilteredJsonData = abajsonData.filter(row => row['Zone'] == value);
+        } else {
+            abafilteredJsonData = abajsonData.filter(row => row[property] == value);
+        }
+        
+        abaupdateJsonTable(abafilteredJsonData);
+        abaupdateJsonSummary(abafilteredJsonData);
+       
+    }
+}
+
+
+
+        function clearFilter() {
+    // Reset the map to the initial zoom level and position
+    map.setView([9.145, 40.489673], 6); // Adjust the coordinates and zoom level as needed
+
+    woredaLayer.clearLayers();
+    woredaLayer.addData(allFeatures);
+    filteredExcelData = excelData;
+    filteredJsonData = jsonData;
+    cccmfilteredJsonData = cccmjsonData;
+    abafilteredJsonData = abajsonData;
+
+    // Show only the first 5 rows in the tables
+    updateExcelTable(filteredExcelData.slice(0, 5));  // Show only the first 5 rows
+    updateJsonTable(filteredJsonData.slice(0, 5));    // Show only the first 5 rows
+    cccmupdateJsonTable(cccmfilteredJsonData.slice(0, 5));    // Show only the first 5 rows
+    abaupdateJsonTable(abafilteredJsonData.slice(0, 5));    // Show only the first 5 rows
+
+    updateSummary(filteredExcelData);
+    updateJsonSummary(filteredJsonData);
+    cccmupdateJsonSummary(cccmfilteredJsonData);
+    abaupdateJsonSummary(abafilteredJsonData);
+    document.getElementById('property').value = '';
+    document.getElementById('value').innerHTML = '<option value="">Select Value</option>';
+    isTableExpanded = false;  // Reset table expansion state
+    isJsonTableExpanded = false;
+    cccmisJsonTableExpanded = false;
+    abaisJsonTableExpanded = false;
+}
+
+
+        function populateExcelFilters(data) {
+            const propertySelect = document.getElementById('property');
+            const properties = new Set();
+            data.forEach(row => {
+                Object.keys(row).forEach(key => properties.add(key));
+            });
+
+            propertySelect.innerHTML = '<option value="">Select Property</option>';
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property;
+                option.textContent = property;
+                propertySelect.appendChild(option);
+            });
+        }
+
+        function populateJsonFilters(data) {
+            const propertySelect = document.getElementById('property');
+            const properties = new Set();
+            data.forEach(row => {
+                Object.keys(row).forEach(key => properties.add(key));
+            });
+
+            propertySelect.innerHTML = '<option value="">Select Property</option>';
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property;
+                option.textContent = property;
+                propertySelect.appendChild(option);
+            });
+        }
+
+
+        function cccmpopulateJsonFilters(data) {
+            const propertySelect = document.getElementById('property');
+            const properties = new Set();
+            data.forEach(row => {
+                Object.keys(row).forEach(key => properties.add(key));
+            });
+
+            propertySelect.innerHTML = '<option value="">Select Property</option>';
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property;
+                option.textContent = property;
+                propertySelect.appendChild(option);
+            });
+        }
+
+
+        function abapopulateJsonFilters(data) {
+            const propertySelect = document.getElementById('property');
+            const properties = new Set();
+            data.forEach(row => {
+                Object.keys(row).forEach(key => properties.add(key));
+            });
+
+            propertySelect.innerHTML = '<option value="">Select Property</option>';
+            properties.forEach(property => {
+                const option = document.createElement('option');
+                option.value = property;
+                option.textContent = property;
+                propertySelect.appendChild(option);
+            });
+        }
+
+        function calculateExcelTotals(data) {
+    let totalHHs = 0;
+    let totalINDs = 0;
+
+    data.forEach(row => {
+        totalHHs += parseInt(row['HHs']) || 0; // Ensure 'HHs' matches the column name in your Excel data
+        totalINDs += parseInt(row['INDs']) || 0; // Ensure 'INDs' matches the column name in your Excel data
+    });
+
+    return { totalHHs, totalINDs };
+}
+
+
+function updateExcelTable(data) {
+    const table = document.getElementById('excelTable');
+    table.innerHTML = '';
+
+    if (data.length === 0) {
+        table.innerHTML = '<tr><td colspan="10">No data available</td></tr>';
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const rowsToShow = isTableExpanded ? data.length : 5;
+    for (let i = 0; i < rowsToShow; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    // Update summary after populating the table
+    updateSummary(data);
+    updateJsonSummary(data);
+    cccmupdateJsonSummary(data);
+    abaupdateJsonSummary(data);
+
+    document.getElementById('viewAllButton').style.display = isTableExpanded ? 'none' : 'inline';
+    document.getElementById('minimizeButton').style.display = isTableExpanded ? 'inline' : 'none';
+}
+
+        function updateJsonTable(data) {
+    const table = document.getElementById('jsonTable');
+    table.innerHTML = '';
+
+    if (data.length === 0) {
+        table.innerHTML = '<tr><td colspan="10">No data available</td></tr>';
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const rowsToShow = isJsonTableExpanded ? data.length : Math.min(data.length, 5); // Show all if expanded, otherwise show max 5
+    for (let i = 0; i < rowsToShow; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    document.getElementById('jsonViewAllButton').style.display = isJsonTableExpanded ? 'none' : 'inline';
+    document.getElementById('jsonMinimizeButton').style.display = isJsonTableExpanded ? 'inline' : 'none';
+}
+
+
+
+
+function cccmupdateJsonTable(data) {
+    const table = document.getElementById('cccmjsonTable');
+    table.innerHTML = '';
+
+    if (data.length === 0) {
+        table.innerHTML = '<tr><td colspan="10">No data available</td></tr>';
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const rowsToShow = cccmisJsonTableExpanded ? data.length : Math.min(data.length, 5); // Show all if expanded, otherwise show max 5
+    for (let i = 0; i < rowsToShow; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    document.getElementById('cccmjsonViewAllButton').style.display = cccmisJsonTableExpanded ? 'none' : 'inline';
+    document.getElementById('cccmjsonMinimizeButton').style.display = cccmisJsonTableExpanded ? 'inline' : 'none';
+}
+
+
+function abaupdateJsonTable(data) {
+    const table = document.getElementById('abajsonTable');
+    table.innerHTML = '';
+
+    if (data.length === 0) {
+        table.innerHTML = '<tr><td colspan="10">No data available</td></tr>';
+        return;
+    }
+
+    const headers = Object.keys(data[0]);
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const rowsToShow = abaisJsonTableExpanded ? data.length : Math.min(data.length, 5); // Show all if expanded, otherwise show max 5
+    for (let i = 0; i < rowsToShow; i++) {
+        const row = data[i];
+        const tr = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    document.getElementById('abajsonViewAllButton').style.display = abaisJsonTableExpanded ? 'none' : 'inline';
+    document.getElementById('abajsonMinimizeButton').style.display = abaisJsonTableExpanded ? 'inline' : 'none';
+}
+
+
+       function updateSummary(data) {
+            const totals = calculateExcelTotals(data);
+            document.getElementById('totalHHs').textContent = totals.totalHHs;
+            document.getElementById('totalINDs').textContent = totals.totalINDs;
+        }
+
+        function updateJsonSummary(data) {
+    const totalHHs = data.reduce((sum, row) => sum + (parseInt(row['Total HHs']) || 0), 0);
+    const totalINDs = data.reduce((sum, row) => sum + (parseInt(row['Total INDs']) || 0), 0);
+
+    const totalHHsElement = document.getElementById('jsonTotalHHs');
+    const totalINDsElement = document.getElementById('jsonTotalINDs');
+
+    if (totalHHsElement) {
+        totalHHsElement.textContent = totalHHs;
+    } else {
+        console.error('Element with ID jsonTotalHHs not found');
+    }
+
+    if (totalINDsElement) {
+        totalINDsElement.textContent = totalINDs;
+    } else {
+        console.error('Element with ID jsonTotalINDs not found');
+    }
+}
+
+function cccmupdateJsonSummary(data) {
+    const totalHHs = data.reduce((sum, row) => sum + (parseInt(row['Total HHs']) || 0), 0);
+    const totalINDs = data.reduce((sum, row) => sum + (parseInt(row['Total INDs']) || 0), 0);
+
+    const cccmTotalHHsElement = document.getElementById('cccmjsonTotalHHs');
+    const cccmTotalINDsElement = document.getElementById('cccmjsonTotalINDs');
+
+    if (cccmTotalHHsElement) {
+        cccmTotalHHsElement.textContent = totalHHs;
+    } else {
+        console.error('Element with ID cccmjsonTotalHHs not found');
+    }
+
+    if (cccmTotalINDsElement) {
+        cccmTotalINDsElement.textContent = totalINDs;
+    } else {
+        console.error('Element with ID cccmjsonTotalINDs not found');
+    }
+}
+
+
+
+function abaupdateJsonSummary(data) {
+    const totalHHs = data.reduce((sum, row) => sum + (parseInt(row['Total HHs']) || 0), 0);
+    const totalINDs = data.reduce((sum, row) => sum + (parseInt(row['Total INDs']) || 0), 0);
+
+    const abaTotalHHsElement = document.getElementById('abajsonTotalHHs');
+    const abaTotalINDsElement = document.getElementById('abajsonTotalINDs');
+
+    if (abaTotalHHsElement) {
+        abaTotalHHsElement.textContent = totalHHs;
+    } else {
+        console.error('Element with ID abajsonTotalHHs not found');
+    }
+
+    if (abaTotalINDsElement) {
+        abaTotalINDsElement.textContent = totalINDs;
+    } else {
+        console.error('Element with ID abajsonTotalINDs not found');
+    }
+}
+
+
+
+        function viewAll() {
+            isTableExpanded = true;
+            updateExcelTable(filteredExcelData);
+        }
+
+        function minimizeTable() {
+            isTableExpanded = false;
+            updateExcelTable(filteredExcelData);
+        }
+
+        function jsonViewAll() {
+    isJsonTableExpanded = true; // Set the table to expanded state
+    updateJsonTable(filteredJsonData); // Update the table with the new state
+}
+
+function cccmjsonViewAll() {
+    cccmisJsonTableExpanded = true; // Set the table to expanded state
+    cccmupdateJsonTable(cccmfilteredJsonData); // Update the table with the new state
+}
+
+function abajsonViewAll() {
+    abaisJsonTableExpanded = true; // Set the table to expanded state
+    abaupdateJsonTable(abafilteredJsonData); // Update the table with the new state
+}
+
+function jsonMinimizeTable() {
+    isJsonTableExpanded = false; // Set the table to minimized state
+    updateJsonTable(filteredJsonData); // Update the table with the new state
+}
+
+function cccmjsonMinimizeTable() {
+    cccmisJsonTableExpanded = false; // Set the table to minimized state
+    cccmupdateJsonTable(cccmfilteredJsonData); // Update the table with the new state
+}
+
+function abajsonMinimizeTable() {
+    abaisJsonTableExpanded = false; // Set the table to minimized state
+    abaupdateJsonTable(abafilteredJsonData); // Update the table with the new state
+}
+    </script>
+</body>
+</html>

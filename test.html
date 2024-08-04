@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Map Popup Test</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #mapid { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="mapid"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Create the map
+        var map = L.map('mapid').setView([9.145, 40.489673], 6);
+
+        // Add the tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        // Example GeoJSON data
+        var testGeoJson = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [40.489673, 9.145]
+                    },
+                    "properties": {
+                        "name": "Test Location",
+                        "description": "This is a test location"
+                    }
+                }
+            ]
+        };
+
+        // Add GeoJSON layer to the map
+        L.geoJson(testGeoJson, {
+            onEachFeature: function (feature, layer) {
+                var popupContent = "<b>Feature Info:</b><br>" + JSON.stringify(feature.properties, null, 2);
+                layer.bindPopup(popupContent);
+                layer.on({
+                    click: function(e) {
+                        e.target.openPopup(); // Open the popup when the feature is clicked
+                    }
+                });
+            }
+        }).addTo(map);
+    });
+    </script>
+</body>
+</html>
